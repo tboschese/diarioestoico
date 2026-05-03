@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local config (SDK paths — machine-specific)
+local.properties
+
+# Android Studio
+*.iml
+.idea/
+*.DS_Store
+
+# APKs / release artifacts
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Kotlin incremental compilation
+**/.kotlin/

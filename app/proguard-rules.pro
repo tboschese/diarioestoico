@@ -1,0 +1,3 @@
+-keep class com.diarioestoico.app.data.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*

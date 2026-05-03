@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DiarioEstoico" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/parchment</item>
+        <item name="android:statusBarColor">@color/parchment</item>
+        <item name="android:navigationBarColor">@color/parchment</item>
+    </style>
+
+    <style name="Theme.DiarioEstoico.SplashScreen" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/parchment</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_stoic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.DiarioEstoico</item>
+    </style>
+</resources>
