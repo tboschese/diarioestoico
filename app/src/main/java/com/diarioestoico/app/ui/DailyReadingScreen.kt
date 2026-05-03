@@ -137,7 +137,7 @@ fun DailyReadingScreen(
                                     .verticalScroll(scrollState)
                                     .padding(horizontal = 28.dp)
                             ) {
-                                Spacer(modifier = Modifier.height(64.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 ChapterHeader(
                                     entry = entry,
@@ -301,11 +301,36 @@ private fun ChapterHeader(
         .getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
         .replaceFirstChar { it.uppercase() }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Action icons row — always above the title, never overlapping
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { showNotifDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsNone,
+                    contentDescription = "Lembrete diário",
+                    tint = if (notifSettings.enabled) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Filled.Bookmark
+                                  else Icons.Outlined.BookmarkBorder,
+                    contentDescription = if (isFavorite) "Remover favorito" else "Salvar nos favoritos",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // Date + title centered, no padding constraint from floating icons
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 40.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -325,30 +350,6 @@ private fun ChapterHeader(
                 ),
                 textAlign = TextAlign.Center
             )
-        }
-
-        // Top-right action icons
-        Row(modifier = Modifier.align(Alignment.TopEnd)) {
-            // Notification bell
-            IconButton(onClick = { showNotifDialog = true }) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = "Lembrete diário",
-                    tint = if (notifSettings.enabled) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            // Bookmark
-            IconButton(onClick = onToggleFavorite) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Filled.Bookmark
-                                  else Icons.Outlined.BookmarkBorder,
-                    contentDescription = if (isFavorite) "Remover favorito" else "Salvar nos favoritos",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
         }
     }
 
