@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
@@ -38,6 +39,7 @@ import com.diarioestoico.app.data.SavedPhrase
 import com.diarioestoico.app.notifications.cancelNotification
 import com.diarioestoico.app.notifications.scheduleNotification
 import com.diarioestoico.app.ui.components.NotificationDialog
+import com.diarioestoico.app.ui.components.ShareCardGenerator
 import com.diarioestoico.app.ui.components.StoicTextToolbar
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -308,6 +310,18 @@ private fun ChapterHeader(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Share
+            IconButton(onClick = {
+                scope.launch { ShareCardGenerator.shareEntry(context, entry) }
+            }) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Compartilhar",
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            // Notification bell
             IconButton(onClick = { showNotifDialog = true }) {
                 Icon(
                     imageVector = Icons.Default.NotificationsNone,
@@ -317,6 +331,7 @@ private fun ChapterHeader(
                     modifier = Modifier.size(22.dp)
                 )
             }
+            // Bookmark
             IconButton(onClick = onToggleFavorite) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Bookmark
