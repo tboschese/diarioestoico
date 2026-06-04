@@ -21,12 +21,18 @@ import java.io.File
 
 object ShareCardGenerator {
 
-    private const val W    = 1080f
-    private const val H    = 1350f   // 4:5 — funciona em Instagram, WhatsApp, Stories
-    private const val PAD  = 72f
+    enum class Mode { QUOTE_ONLY, QUOTE_WITH_COMMENTARY }
 
-    suspend fun shareEntry(context: Context, entry: DailyEntry) = withContext(Dispatchers.IO) {
-        val bitmap = buildCard(context, entry)
+    private const val W       = 1080f
+    private const val MIN_H   = 1350f   // 4:5 mínimo; cresce conforme conteúdo
+    private const val PAD     = 72f
+
+    suspend fun shareEntry(
+        context: Context,
+        entry: DailyEntry,
+        mode: Mode = Mode.QUOTE_ONLY
+    ) = withContext(Dispatchers.IO) {
+        val bitmap = buildCard(context, entry, mode)
 
         val file = File(context.cacheDir, "share/diario_estoico.png")
         file.parentFile?.mkdirs()
@@ -55,10 +61,7 @@ object ShareCardGenerator {
     // Card drawing
     // ─────────────────────────────────────────────────────────────────
 
-    private fun buildCard(context: Context, entry: DailyEntry): Bitmap {
-        val bmp = Bitmap.createBitmap(W.toInt(), H.toInt(), Bitmap.Config.ARGB_8888)
-        val cv  = Canvas(bmp)
-
+    private fun buildCard(context: Context, entry: DailyEntry, mode: Mode): Bitmap {
         // ── Palette ────────────────────────────────────────────────
         val bgColor      = Color.parseColor("#FAF8F4")
         val accentColor  = Color.parseColor("#7A5C1E")
@@ -75,21 +78,73 @@ object ShareCardGenerator {
         val tfItal = ResourcesCompat.getFont(context, R.font.lora_italic)
             ?: Typeface.create(Typeface.SERIF, Typeface.ITALIC)
 
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val cw = W - PAD * 2     // usable content width
+
+        // ── Pre-measure layouts so o card cresce sem cortar texto ──
+        val titlePaint = tp(58f, inkColor, tfBold)
+        val titleLayout = StaticLayout.Builder
+            .obtain(entry.title, 0, entry.title.length, titlePaint, cw.toInt())
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setLineSpacing(10f, 1f)
+            .build()
+
+        val bx0  = PAD - 10f
+        val bx1  = W - PAD + 10f
+        val bPad = 40f
+        val qPaint = tp(38f, inkColor, tfItal)
+        val qWidth = (bx1 - bx0 - bPad * 2 - 4f).toInt()
+        val qLayout = StaticLayout.Builder
+            .obtain(entry.quote, 0, entry.quote.length, qPaint, qWidth)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setLineSpacing(8f, 1f)
+            .build()
+        val authorText = if (entry.author.isNotBlank()) "— ${entry.author}" else ""
+        val authorH = if (authorText.isNotEmpty()) 52f else 0f
+        val boxH = bPad + 68f + qLayout.height + authorH + 20f + bPad
+
+        val commentaryPaint = tp(30f, inkColor, tfReg)
+        val commentaryLayout = if (mode == Mode.QUOTE_WITH_COMMENTARY && entry.commentary.isNotBlank()) {
+            StaticLayout.Builder
+                .obtain(entry.commentary, 0, entry.commentary.length, commentaryPaint, cw.toInt())
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(10f, 1f)
+                .build()
+        } else null
+
+        // ── Compute total height ──────────────────────────────────
+        var needed = PAD + 20f       // top
+        needed += 60f                // header
+        needed += 28f                // divider gap
+        needed += 60f                // date
+        needed += titleLayout.height + 52f
+        needed += 50f                // ornament
+        needed += boxH + 52f
+        if (commentaryLayout != null) {
+            needed += 30f            // divider
+            needed += 50f            // "REFLEXÃO" label
+            needed += commentaryLayout.height + 52f
+        }
+        needed += 100f               // branding area
+        needed += PAD                // bottom
+
+        val finalH = maxOf(needed, MIN_H)
+
+        val bmp = Bitmap.createBitmap(W.toInt(), finalH.toInt(), Bitmap.Config.ARGB_8888)
+        val cv  = Canvas(bmp)
+        val p   = Paint(Paint.ANTI_ALIAS_FLAG)
 
         // ── Background ─────────────────────────────────────────────
         p.color = bgColor
-        cv.drawRect(0f, 0f, W, H, p)
+        cv.drawRect(0f, 0f, W, finalH, p)
 
         // ── Thin decorative border ─────────────────────────────────
         p.style = Paint.Style.STROKE
         p.strokeWidth = 2f
         p.color = accentColor; p.alpha = 30
-        cv.drawRect(20f, 20f, W - 20f, H - 20f, p)
+        cv.drawRect(20f, 20f, W - 20f, finalH - 20f, p)
         p.alpha = 255; p.style = Paint.Style.FILL
 
-        val cw = W - PAD * 2     // usable content width
-        var y  = PAD + 20f
+        var y = PAD + 20f
 
         // ── 1. App header ──────────────────────────────────────────
         val headerPaint = tp(30f, accentColor, tfReg, Paint.Align.CENTER)
@@ -109,13 +164,6 @@ object ShareCardGenerator {
         y += 60f
 
         // ── 4. Title ───────────────────────────────────────────────
-        val titleText = entry.title.take(80)
-        val titlePaint = tp(58f, inkColor, tfBold)
-        val titleLayout = StaticLayout.Builder
-            .obtain(titleText, 0, titleText.length, titlePaint, cw.toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setLineSpacing(10f, 1f)
-            .build()
         cv.save(); cv.translate(PAD, y); titleLayout.draw(cv); cv.restore()
         y += titleLayout.height + 52f
 
@@ -124,44 +172,19 @@ object ShareCardGenerator {
         y += 50f
 
         // ── 6. Quote box ───────────────────────────────────────────
-        val quoteText = entry.quote.let {
-            if (it.length > 220) "${it.take(217)}…" else it
-        }
-        val authorText = if (entry.author.isNotBlank()) "— ${entry.author}" else ""
-
-        // Layout geometry
-        val bx0  = PAD - 10f
-        val bx1  = W - PAD + 10f
-        val bPad = 40f
-
-        val qPaint = tp(38f, inkColor, tfItal)
-        val qWidth = (bx1 - bx0 - bPad * 2 - 4f).toInt()
-        val qLayout = StaticLayout.Builder
-            .obtain(quoteText, 0, quoteText.length, qPaint, qWidth)
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(8f, 1f)
-            .build()
-
-        val authorH = if (authorText.isNotEmpty()) 52f else 0f
-        // from box-top: bPad (36 top) + 68 (mark area) + qLayout + authorH + bPad
-        val boxH = bPad + 68f + qLayout.height.toFloat() + authorH + 20f + bPad
         val by0  = y
         val by1  = y + boxH
 
-        // Box fill
         p.color = quoteBoxClr
         cv.drawRoundRect(RectF(bx0, by0, bx1, by1), 14f, 14f, p)
 
-        // Opening quote mark " (decorative, semi-transparent)
         val markPaint = tp(88f, accentColor, tfBold, Paint.Align.LEFT)
             .also { it.alpha = 160 }
         cv.drawText("“", bx0 + bPad, by0 + bPad + 60f, markPaint)
 
-        // Quote text (starts just below the mark's cap-height)
         val qTextY = by0 + bPad + 72f
         cv.save(); cv.translate(bx0 + bPad, qTextY); qLayout.draw(cv); cv.restore()
 
-        // Author attribution
         if (authorText.isNotEmpty()) {
             cv.drawText(
                 authorText,
@@ -173,12 +196,32 @@ object ShareCardGenerator {
 
         y = by1 + 52f
 
-        // ── 7. Branding centered in remaining space ────────────────
-        val remaining = H - PAD - y
+        // ── 7. Commentary (optional) ───────────────────────────────
+        if (commentaryLayout != null) {
+            p.color = dividerClr; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
+            cv.drawLine(PAD + 80f, y, W - PAD - 80f, y, p)
+            p.style = Paint.Style.FILL
+            y += 30f
+
+            cv.drawText(
+                "REFLEXÃO",
+                W / 2f,
+                y + 26f,
+                tp(26f, accentColor, tfReg, Paint.Align.CENTER).also { it.letterSpacing = 0.22f }
+            )
+            y += 50f
+
+            cv.save(); cv.translate(PAD, y); commentaryLayout.draw(cv); cv.restore()
+            y += commentaryLayout.height + 52f
+        }
+
+        // ── 8. Branding centered in remaining space ────────────────
+        val remaining = finalH - PAD - y
         val brandY    = y + remaining / 2f
 
         p.color = dividerClr; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
         cv.drawLine(PAD + 120f, brandY - 12f, W - PAD - 120f, brandY - 12f, p)
+        p.style = Paint.Style.FILL
 
         cv.drawText(
             "Diário Estoico",

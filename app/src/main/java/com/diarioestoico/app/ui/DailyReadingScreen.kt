@@ -297,6 +297,7 @@ private fun ChapterHeader(
     val notifPrefs = remember { NotificationPreferences(context) }
     val notifSettings by notifPrefs.settings.collectAsState(initial = NotificationSettings())
     var showNotifDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
 
     val today = LocalDate.now()
     val weekday = today.dayOfWeek
@@ -311,9 +312,7 @@ private fun ChapterHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Share
-            IconButton(onClick = {
-                scope.launch { ShareCardGenerator.shareEntry(context, entry) }
-            }) {
+            IconButton(onClick = { showShareDialog = true }) {
                 Icon(
                     imageVector = Icons.Default.Share,
                     contentDescription = "Compartilhar",
@@ -366,6 +365,17 @@ private fun ChapterHeader(
                 textAlign = TextAlign.Center
             )
         }
+    }
+
+    if (showShareDialog) {
+        ShareOptionsDialog(
+            hasCommentary = entry.commentary.isNotBlank(),
+            onDismiss = { showShareDialog = false },
+            onSelect = { mode ->
+                showShareDialog = false
+                scope.launch { ShareCardGenerator.shareEntry(context, entry, mode) }
+            }
+        )
     }
 
     if (showNotifDialog) {
@@ -520,6 +530,48 @@ private fun FooterCredit() {
             textAlign = TextAlign.Center
         )
     }
+}
+
+@Composable
+private fun ShareOptionsDialog(
+    hasCommentary: Boolean,
+    onDismiss: () -> Unit,
+    onSelect: (ShareCardGenerator.Mode) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Compartilhar",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = MaterialTheme.colorScheme.primary
+                )
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "O que você quer compartilhar?",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            if (hasCommentary) {
+                TextButton(onClick = { onSelect(ShareCardGenerator.Mode.QUOTE_WITH_COMMENTARY) }) {
+                    Text("Citação + reflexão")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onSelect(ShareCardGenerator.Mode.QUOTE_ONLY) }) {
+                Text("Só a citação")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    )
 }
 
 @Composable
