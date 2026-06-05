@@ -2,21 +2,23 @@ package com.diarioestoico.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light mode — paper branco-creme, confortável para leitura
-val Parchment       = Color(0xFFFAF8F4)   // branco levemente quente
-val ParchmentDark   = Color(0xFFF2EDE4)   // superfície levemente mais escura
-val InkBrown        = Color(0xFF1A1614)   // quase preto, sem ser frio
-val InkMedium       = Color(0xFF3D3530)
-val InkLight        = Color(0xFF6B5F56)
-val AccentGold      = Color(0xFF7A5C1E)
-val AccentGoldLight = Color(0xFF9E7A2A)
-val DividerColor    = Color(0xFFD9D0C4)
-val QuoteBackground = Color(0xFFEEE8DE)
+// ── Light mode — warm editorial paper ─────────────────────────────────
+val PaperBg        = Color(0xFFF6F1E8)   // warm parchment background
+val PaperSurface   = Color(0xFFFFFFD9)   // almost-white warm surface (never pure white)
+val PaperSurface2  = Color(0xFFFBF6EE)   // segmented controls, secondary surface
+val PaperQuoteTint = Color(0xFFEFE7D8)   // quote card tint
+val InkPrimary     = Color(0xFF231D16)   // near-black warm ink
+val InkSecondary   = Color(0xFF6E6356)   // secondary text
+val InkTertiary    = Color(0xFFA0937F)   // labels, captions
+val InkLine        = Color(0xFFE8DFCF)   // dividers, borders
+val AccentSienna   = Color(0xFF7C5230)   // sienna — the editorial accent
 
-// Dark mode — cinza escuro neutro, sem marrom, fácil de ler
-val NightBackground     = Color(0xFF141414)   // cinza quase preto
-val NightSurface        = Color(0xFF1F1F1F)   // superfície um pouco mais clara
-val NightText           = Color(0xFFECE6DC)   // creme claro sobre escuro
-val NightTextSecondary  = Color(0xFFADA49A)
-val NightAccent         = Color(0xFFD4A843)
-val NightDivider        = Color(0xFF2E2E2E)
+// ── Dark mode — deep warm dark ─────────────────────────────────────────
+val NightBg        = Color(0xFF15120D)
+val NightSurface   = Color(0xFF211C15)
+val NightSurface2  = Color(0xFF2A241B)
+val NightInk       = Color(0xFFECE3D4)
+val NightInk2      = Color(0xFFB3A795)
+val NightInk3      = Color(0xFF827766)
+val NightLine      = Color(0xFF332C22)
+val NightAccent    = Color(0xFFD89A5E)
