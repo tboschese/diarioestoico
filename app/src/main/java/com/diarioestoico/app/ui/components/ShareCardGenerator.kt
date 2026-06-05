@@ -21,12 +21,31 @@ import java.io.File
 
 object ShareCardGenerator {
 
-    private const val W    = 1080f
-    private const val H    = 1350f   // 4:5 — funciona em Instagram, WhatsApp, Stories
-    private const val PAD  = 72f
+    enum class Mode {
+        QUOTE_ONLY,       // Just the citation, centered — great for a clean quote post
+        REFLECTION_ONLY,  // Just the commentary / reflection text
+        FULL              // Quote card + reflection (complete meditation)
+    }
 
-    suspend fun shareEntry(context: Context, entry: DailyEntry) = withContext(Dispatchers.IO) {
-        val bitmap = buildCard(context, entry)
+    private const val W     = 1080f
+    private const val MIN_H = 1350f  // 4:5 minimum; grows for longer content
+    private const val PAD   = 72f
+
+    // Colors — always light/parchment so share cards read well everywhere
+    private val C_BG      = Color.parseColor("#FAF6EE")
+    private val C_INK     = Color.parseColor("#241D15")
+    private val C_INK2    = Color.parseColor("#6B5F52")
+    private val C_INK3    = Color.parseColor("#A99B85")
+    private val C_TINT    = Color.parseColor("#F1E9DA")
+    private val C_LINE    = Color.parseColor("#E6DBC9")
+    private val C_ACCENT  = Color.parseColor("#7C5230")
+
+    suspend fun shareEntry(
+        context: Context,
+        entry: DailyEntry,
+        mode: Mode = Mode.QUOTE_ONLY
+    ) = withContext(Dispatchers.IO) {
+        val bitmap = buildCard(context, entry, mode)
 
         val file = File(context.cacheDir, "share/diario_estoico.png")
         file.parentFile?.mkdirs()
@@ -55,142 +74,185 @@ object ShareCardGenerator {
     // Card drawing
     // ─────────────────────────────────────────────────────────────────
 
-    private fun buildCard(context: Context, entry: DailyEntry): Bitmap {
-        val bmp = Bitmap.createBitmap(W.toInt(), H.toInt(), Bitmap.Config.ARGB_8888)
+    private fun buildCard(context: Context, entry: DailyEntry, mode: Mode): Bitmap {
+        val tfReg  = ResourcesCompat.getFont(context, R.font.lora_regular)  ?: Typeface.SERIF
+        val tfBold = ResourcesCompat.getFont(context, R.font.lora_bold)     ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        val tfItal = ResourcesCompat.getFont(context, R.font.lora_italic)   ?: Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+
+        val cw = W - PAD * 2  // usable content width
+
+        // ── Pre-measure all text layouts ────────────────────────────
+        val titlePaint = tp(52f, C_INK, Typeface.DEFAULT_BOLD)
+        val titleLayout = sl(entry.title, titlePaint, cw.toInt())
+
+        // Quote layout
+        val qInset  = PAD + 20f
+        val qWidth  = (W - qInset * 2).toInt()
+        val qPaint  = tp(36f, C_INK, tfItal)
+        val qLayout = sl(entry.quote, qPaint, qWidth)
+
+        val authorH   = if (entry.author.isNotBlank()) 50f else 0f
+        val stripeW   = 4f
+        val bPadH     = 40f
+        val bPadV     = 36f
+        // quote box height: top-pad + " mark + gap + text + author + bottom-pad
+        val quoteBoxH = bPadV + 62f + 8f + qLayout.height + authorH + bPadV
+
+        // Commentary layout
+        val comPaint  = tp(32f, C_INK, tfReg)
+        val comLayout = if (mode != Mode.QUOTE_ONLY && entry.commentary.isNotBlank()) {
+            sl(entry.commentary, comPaint, cw.toInt())
+        } else null
+
+        // ── Compute total height ─────────────────────────────────────
+        var needed = PAD + 20f   // top
+        needed += 60f            // header (app name)
+        needed += 28f            // divider gap
+        needed += 56f            // date
+        if (mode != Mode.REFLECTION_ONLY) {
+            needed += titleLayout.height + 52f
+            needed += 44f        // ornament separator
+            needed += quoteBoxH + 48f
+        } else {
+            needed += titleLayout.height + 40f
+        }
+        if (comLayout != null) {
+            needed += 24f        // label line gap
+            needed += 50f        // "REFLEXÃO" label
+            needed += comLayout.height + 52f
+        }
+        needed += 80f + PAD      // branding + bottom
+
+        val finalH = maxOf(needed, MIN_H)
+
+        val bmp = Bitmap.createBitmap(W.toInt(), finalH.toInt(), Bitmap.Config.ARGB_8888)
         val cv  = Canvas(bmp)
+        val p   = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        // ── Palette ────────────────────────────────────────────────
-        val bgColor      = Color.parseColor("#FAF8F4")
-        val accentColor  = Color.parseColor("#7A5C1E")
-        val inkColor     = Color.parseColor("#1A1614")
-        val inkLightClr  = Color.parseColor("#6B5F56")
-        val quoteBoxClr  = Color.parseColor("#EEE8DE")
-        val dividerClr   = Color.parseColor("#D9D0C4")
+        // ── Background ───────────────────────────────────────────────
+        p.color = C_BG; p.style = Paint.Style.FILL
+        cv.drawRect(0f, 0f, W, finalH, p)
 
-        // ── Typefaces ──────────────────────────────────────────────
-        val tfReg  = ResourcesCompat.getFont(context, R.font.lora_regular)
-            ?: Typeface.SERIF
-        val tfBold = ResourcesCompat.getFont(context, R.font.lora_bold)
-            ?: Typeface.create(Typeface.SERIF, Typeface.BOLD)
-        val tfItal = ResourcesCompat.getFont(context, R.font.lora_italic)
-            ?: Typeface.create(Typeface.SERIF, Typeface.ITALIC)
-
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
-
-        // ── Background ─────────────────────────────────────────────
-        p.color = bgColor
-        cv.drawRect(0f, 0f, W, H, p)
-
-        // ── Thin decorative border ─────────────────────────────────
-        p.style = Paint.Style.STROKE
-        p.strokeWidth = 2f
-        p.color = accentColor; p.alpha = 30
-        cv.drawRect(20f, 20f, W - 20f, H - 20f, p)
+        // ── Thin inner border ────────────────────────────────────────
+        p.style = Paint.Style.STROKE; p.strokeWidth = 1.5f
+        p.color = C_ACCENT; p.alpha = 55
+        cv.drawRect(16f, 16f, W - 16f, finalH - 16f, p)
         p.alpha = 255; p.style = Paint.Style.FILL
 
-        val cw = W - PAD * 2     // usable content width
-        var y  = PAD + 20f
+        var y = PAD + 20f
 
-        // ── 1. App header ──────────────────────────────────────────
-        val headerPaint = tp(30f, accentColor, tfReg, Paint.Align.CENTER)
-            .also { it.letterSpacing = 0.18f }
-        cv.drawText("✦  DIÁRIO ESTOICO  ✦", W / 2f, y + 30f, headerPaint)
-        y += 60f
+        // ── App header ───────────────────────────────────────────────
+        cv.drawText(
+            "Diário Estoico".uppercase(),
+            W / 2f, y + 28f,
+            tp(24f, C_ACCENT, tfReg, Paint.Align.CENTER).also { it.letterSpacing = 0.2f }
+        )
+        y += 56f
 
-        // ── 2. Hairline divider ────────────────────────────────────
-        p.color = dividerClr; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
-        cv.drawLine(PAD + 80f, y, W - PAD - 80f, y, p)
+        // ── Hairline ─────────────────────────────────────────────────
+        p.color = C_LINE; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
+        cv.drawLine(PAD + 100f, y, W - PAD - 100f, y, p)
         p.style = Paint.Style.FILL; y += 28f
 
-        // ── 3. Date ────────────────────────────────────────────────
-        val datePaint = tp(28f, accentColor, tfReg, Paint.Align.CENTER)
-            .also { it.letterSpacing = 0.12f }
-        cv.drawText("${entry.day} DE ${entry.monthName.uppercase()}", W / 2f, y + 28f, datePaint)
-        y += 60f
+        // ── Date ─────────────────────────────────────────────────────
+        cv.drawText(
+            "${entry.day} DE ${entry.monthName.uppercase()}",
+            W / 2f, y + 24f,
+            tp(26f, C_ACCENT, Typeface.DEFAULT, Paint.Align.CENTER).also { it.letterSpacing = 0.14f }
+        )
+        y += 56f
 
-        // ── 4. Title ───────────────────────────────────────────────
-        val titleText = entry.title.take(80)
-        val titlePaint = tp(58f, inkColor, tfBold)
-        val titleLayout = StaticLayout.Builder
-            .obtain(titleText, 0, titleText.length, titlePaint, cw.toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setLineSpacing(10f, 1f)
-            .build()
-        cv.save(); cv.translate(PAD, y); titleLayout.draw(cv); cv.restore()
-        y += titleLayout.height + 52f
+        when (mode) {
+            Mode.REFLECTION_ONLY -> {
+                // Title only (no quote box)
+                cv.save(); cv.translate(PAD, y)
+                titleLayout.draw(cv); cv.restore()
+                y += titleLayout.height + 40f
+            }
+            else -> {
+                // Title
+                cv.save(); cv.translate(PAD, y)
+                titleLayout.draw(cv); cv.restore()
+                y += titleLayout.height + 52f
 
-        // ── 5. Ornament ────────────────────────────────────────────
-        cv.drawText("—  ✦  —", W / 2f, y + 16f, tp(22f, accentColor, tfReg, Paint.Align.CENTER))
-        y += 50f
+                // Separator
+                cv.drawText("—  ✦  —", W / 2f, y + 14f,
+                    tp(20f, C_ACCENT, tfReg, Paint.Align.CENTER))
+                y += 44f
 
-        // ── 6. Quote box ───────────────────────────────────────────
-        val quoteText = entry.quote.let {
-            if (it.length > 220) "${it.take(217)}…" else it
+                // ── Quote box ────────────────────────────────────────
+                val bx0 = PAD - 8f; val bx1 = W - PAD + 8f
+                val by0 = y;        val by1 = y + quoteBoxH
+
+                // Tinted background
+                p.color = C_TINT
+                cv.drawRoundRect(RectF(bx0, by0, bx1, by1), 16f, 16f, p)
+
+                // Left accent stripe
+                p.color = C_ACCENT
+                cv.drawRoundRect(RectF(bx0, by0 + 24f, bx0 + stripeW, by1 - 24f), 3f, 3f, p)
+
+                // Decorative " mark
+                val markPaint = tp(80f, C_ACCENT, tfItal, Paint.Align.LEFT)
+                    .also { it.alpha = 80 }
+                cv.drawText("“", qInset + bPadH * 0.7f, by0 + bPadV + 50f, markPaint)
+
+                // Quote text
+                val qTextY = by0 + bPadV + 66f
+                cv.save(); cv.translate(qInset, qTextY); qLayout.draw(cv); cv.restore()
+
+                // Author
+                if (entry.author.isNotBlank()) {
+                    cv.drawText(
+                        "— ${entry.author}".uppercase(),
+                        bx1 - bPadH * 0.6f,
+                        qTextY + qLayout.height + 30f,
+                        tp(22f, C_ACCENT, Typeface.DEFAULT, Paint.Align.RIGHT)
+                            .also { it.letterSpacing = 0.12f }
+                    )
+                }
+                y = by1 + 48f
+            }
         }
-        val authorText = if (entry.author.isNotBlank()) "— ${entry.author}" else ""
 
-        // Layout geometry
-        val bx0  = PAD - 10f
-        val bx1  = W - PAD + 10f
-        val bPad = 40f
+        // ── Commentary / Reflection ──────────────────────────────────
+        if (comLayout != null) {
+            p.color = C_LINE; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
+            cv.drawLine(PAD + 80f, y, W - PAD - 80f, y, p)
+            p.style = Paint.Style.FILL; y += 24f
 
-        val qPaint = tp(38f, inkColor, tfItal)
-        val qWidth = (bx1 - bx0 - bPad * 2 - 4f).toInt()
-        val qLayout = StaticLayout.Builder
-            .obtain(quoteText, 0, quoteText.length, qPaint, qWidth)
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setLineSpacing(8f, 1f)
-            .build()
-
-        val authorH = if (authorText.isNotEmpty()) 52f else 0f
-        // from box-top: bPad (36 top) + 68 (mark area) + qLayout + authorH + bPad
-        val boxH = bPad + 68f + qLayout.height.toFloat() + authorH + 20f + bPad
-        val by0  = y
-        val by1  = y + boxH
-
-        // Box fill
-        p.color = quoteBoxClr
-        cv.drawRoundRect(RectF(bx0, by0, bx1, by1), 14f, 14f, p)
-
-        // Opening quote mark " (decorative, semi-transparent)
-        val markPaint = tp(88f, accentColor, tfBold, Paint.Align.LEFT)
-            .also { it.alpha = 160 }
-        cv.drawText("“", bx0 + bPad, by0 + bPad + 60f, markPaint)
-
-        // Quote text (starts just below the mark's cap-height)
-        val qTextY = by0 + bPad + 72f
-        cv.save(); cv.translate(bx0 + bPad, qTextY); qLayout.draw(cv); cv.restore()
-
-        // Author attribution
-        if (authorText.isNotEmpty()) {
             cv.drawText(
-                authorText,
-                bx1 - bPad,
-                qTextY + qLayout.height + 36f,
-                tp(28f, accentColor, tfReg, Paint.Align.RIGHT)
+                "REFLEXÃO",
+                W / 2f, y + 24f,
+                tp(22f, C_INK3, Typeface.DEFAULT, Paint.Align.CENTER)
+                    .also { it.letterSpacing = 0.22f }
             )
+            y += 50f
+
+            cv.save(); cv.translate(PAD, y); comLayout.draw(cv); cv.restore()
+            y += comLayout.height + 52f
         }
 
-        y = by1 + 52f
+        // ── Branding ─────────────────────────────────────────────────
+        val rem = finalH - PAD - y
+        val brandY = y + rem / 2f
 
-        // ── 7. Branding centered in remaining space ────────────────
-        val remaining = H - PAD - y
-        val brandY    = y + remaining / 2f
-
-        p.color = dividerClr; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
-        cv.drawLine(PAD + 120f, brandY - 12f, W - PAD - 120f, brandY - 12f, p)
+        p.color = C_LINE; p.style = Paint.Style.STROKE; p.strokeWidth = 1f
+        cv.drawLine(PAD + 140f, brandY - 10f, W - PAD - 140f, brandY - 10f, p)
+        p.style = Paint.Style.FILL
 
         cv.drawText(
-            "Diário Estoico",
-            W / 2f,
-            brandY + 22f,
-            tp(26f, inkLightClr, tfItal, Paint.Align.CENTER).also { it.alpha = 150 }
+            "366 dias de sabedoria".uppercase(),
+            W / 2f, brandY + 20f,
+            tp(20f, C_INK3, Typeface.DEFAULT, Paint.Align.CENTER)
+                .also { it.letterSpacing = 0.2f; it.alpha = 160 }
         )
 
         return bmp
     }
 
-    /** Convenience — creates a TextPaint with common settings. */
+    // ── Helpers ───────────────────────────────────────────────────────
+
     private fun tp(
         size: Float,
         color: Int,
@@ -202,4 +264,11 @@ object ShareCardGenerator {
         typeface  = face
         textAlign = align
     }
+
+    private fun sl(text: String, paint: TextPaint, width: Int): StaticLayout =
+        StaticLayout.Builder
+            .obtain(text, 0, text.length, paint, width)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setLineSpacing(10f, 1f)
+            .build()
 }

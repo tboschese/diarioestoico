@@ -7,31 +7,33 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
 private val LightColors = lightColorScheme(
-    background = Parchment,
-    surface = ParchmentDark,
-    onBackground = InkBrown,
-    onSurface = InkMedium,
-    primary = AccentGold,
-    onPrimary = Parchment,
-    secondary = InkLight,
-    onSecondary = Parchment,
-    outline = DividerColor,
-    surfaceVariant = QuoteBackground,
-    onSurfaceVariant = InkMedium
+    background       = PaperBg,          // warm parchment
+    surface          = PaperSurface,     // near-white warm surface
+    surfaceVariant   = PaperQuoteTint,   // quote card tint
+    onBackground     = InkPrimary,       // main text
+    onSurface        = InkSecondary,     // secondary text
+    onSurfaceVariant = InkTertiary,      // tertiary / captions
+    primary          = AccentSienna,     // sienna accent
+    onPrimary        = PaperSurface,
+    secondary        = InkSecondary,
+    onSecondary      = PaperSurface,
+    outline          = InkLine,          // dividers, borders
+    outlineVariant   = PaperSurface2,    // segmented control bg
 )
 
 private val DarkColors = darkColorScheme(
-    background = NightBackground,
-    surface = NightSurface,
-    onBackground = NightText,
-    onSurface = NightText,
-    primary = NightAccent,
-    onPrimary = NightBackground,
-    secondary = NightTextSecondary,
-    onSecondary = NightBackground,
-    outline = NightDivider,
-    surfaceVariant = NightSurface,
-    onSurfaceVariant = NightTextSecondary
+    background       = NightBg,
+    surface          = NightSurface,
+    surfaceVariant   = NightSurface2,
+    onBackground     = NightInk,
+    onSurface        = NightInk2,
+    onSurfaceVariant = NightInk3,
+    primary          = NightAccent,
+    onPrimary        = NightBg,
+    secondary        = NightInk2,
+    onSecondary      = NightBg,
+    outline          = NightLine,
+    outlineVariant   = NightSurface2,
 )
 
 @Composable
@@ -40,10 +42,9 @@ fun DiarioEstoicoTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkColors else LightColors
-
     MaterialTheme(
         colorScheme = colors,
-        typography = StoicTypography,
-        content = content
+        typography  = StoicTypography,
+        content     = content
     )
 }

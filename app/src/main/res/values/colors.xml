@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="parchment">#FAF7F2</color>
-    <color name="ink_brown">#28211A</color>
-    <color name="accent_gold">#7A5C1E</color>
+    <color name="parchment">#F6F1E8</color>
+    <color name="ink_brown">#231D16</color>
+    <color name="accent_sienna">#7C5230</color>
 </resources>

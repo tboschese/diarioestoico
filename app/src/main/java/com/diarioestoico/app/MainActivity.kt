@@ -13,23 +13,30 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.diarioestoico.app.data.DailyEntry
 import com.diarioestoico.app.data.EntryRepository
 import com.diarioestoico.app.data.FavoritesRepository
+import com.diarioestoico.app.data.ThemeMode
+import com.diarioestoico.app.data.ThemePreferences
 import com.diarioestoico.app.ui.DailyReadingScreen
 import com.diarioestoico.app.ui.FavoritesScreen
 import com.diarioestoico.app.ui.theme.DiarioEstoicoTheme
-import com.diarioestoico.app.ui.theme.LibreBaskerville
+import com.diarioestoico.app.ui.theme.SansFamily
 
 private enum class Screen { TODAY, FAVORITES }
 
@@ -49,17 +56,28 @@ class MainActivity : ComponentActivity() {
             requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        val entryRepository = EntryRepository(applicationContext)
+        val entryRepository     = EntryRepository(applicationContext)
         val favoritesRepository = FavoritesRepository(applicationContext)
-        val allEntries = entryRepository.getAllEntries()
-        val todayEntry = entryRepository.getTodayEntry()
+        val themePreferences    = ThemePreferences(applicationContext)
+        val allEntries          = entryRepository.getAllEntries()
+        val todayEntry          = entryRepository.getTodayEntry()
 
         setContent {
-            DiarioEstoicoTheme {
+            val themeMode by themePreferences.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                ThemeMode.LIGHT  -> false
+                ThemeMode.DARK   -> true
+                ThemeMode.SYSTEM -> systemDark
+            }
+
+            DiarioEstoicoTheme(darkTheme = isDark) {
                 AppScaffold(
-                    allEntries = allEntries,
-                    todayEntry = todayEntry,
-                    favoritesRepository = favoritesRepository
+                    allEntries          = allEntries,
+                    todayEntry          = todayEntry,
+                    favoritesRepository = favoritesRepository,
+                    themePreferences    = themePreferences,
+                    currentThemeMode    = themeMode
                 )
             }
         }
@@ -70,11 +88,13 @@ class MainActivity : ComponentActivity() {
 private fun AppScaffold(
     allEntries: List<DailyEntry>,
     todayEntry: DailyEntry?,
-    favoritesRepository: FavoritesRepository
+    favoritesRepository: FavoritesRepository,
+    themePreferences: ThemePreferences,
+    currentThemeMode: ThemeMode
 ) {
     var currentScreen by remember { mutableStateOf(Screen.TODAY) }
+    val scope = rememberCoroutineScope()
 
-    // Index-based navigation so prev/next work correctly
     val todayIndex = remember(allEntries, todayEntry) {
         if (todayEntry == null) 0
         else allEntries.indexOfFirst { it.day == todayEntry.day && it.month == todayEntry.month }
@@ -89,32 +109,41 @@ private fun AppScaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 tonalElevation = 0.dp
             ) {
-                NavigationBarItem(
-                    selected = currentScreen == Screen.TODAY,
-                    onClick = { currentScreen = Screen.TODAY },
-                    icon = { Icon(Icons.Default.AutoStories, contentDescription = null) },
-                    label = {
-                        Text("Hoje", fontFamily = LibreBaskerville, fontSize = 11.sp)
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.surfaceVariant
+                listOf(
+                    Triple(Screen.TODAY,     Icons.Default.AutoStories, "Hoje"),
+                    Triple(Screen.FAVORITES, Icons.Default.Bookmark,    "Favoritos")
+                ).forEach { (screen, icon, label) ->
+                    val selected = currentScreen == screen
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick  = { currentScreen = screen },
+                        icon = {
+                            Box(modifier = Modifier.size(if (selected) 56.dp else 40.dp, 28.dp)) {
+                                Icon(
+                                    icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.matchParentSize()
+                                        .padding(horizontal = if (selected) 17.dp else 9.dp)
+                                )
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = label,
+                                fontFamily = SansFamily,
+                                fontWeight = if (selected) FontWeight.W600 else FontWeight.W500,
+                                fontSize = 11.sp
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = MaterialTheme.colorScheme.primary,
+                            selectedTextColor   = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor      = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        )
                     )
-                )
-                NavigationBarItem(
-                    selected = currentScreen == Screen.FAVORITES,
-                    onClick = { currentScreen = Screen.FAVORITES },
-                    icon = { Icon(Icons.Default.Bookmark, contentDescription = null) },
-                    label = {
-                        Text("Favoritos", fontFamily = LibreBaskerville, fontSize = 11.sp)
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                )
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -127,19 +156,21 @@ private fun AppScaffold(
         ) { screen ->
             when (screen) {
                 Screen.TODAY -> DailyReadingScreen(
-                    entry = currentEntry,
+                    entry               = currentEntry,
                     favoritesRepository = favoritesRepository,
-                    entryIndex = entryIndex,
-                    totalEntries = allEntries.size,
-                    todayIndex = todayIndex,
-                    onPrevious = { if (entryIndex > 0) entryIndex-- },
-                    onNext = { if (entryIndex < allEntries.size - 1) entryIndex++ },
-                    onGoToToday = { entryIndex = todayIndex }
+                    themePreferences    = themePreferences,
+                    currentThemeMode    = currentThemeMode,
+                    entryIndex          = entryIndex,
+                    totalEntries        = allEntries.size,
+                    todayIndex          = todayIndex,
+                    onPrevious          = { if (entryIndex > 0) entryIndex-- },
+                    onNext              = { if (entryIndex < allEntries.size - 1) entryIndex++ },
+                    onGoToToday         = { entryIndex = todayIndex }
                 )
                 Screen.FAVORITES -> FavoritesScreen(
                     favoritesRepository = favoritesRepository,
-                    allEntries = allEntries,
-                    onOpenEntry = { entry ->
+                    allEntries          = allEntries,
+                    onOpenEntry         = { entry ->
                         val idx = allEntries.indexOfFirst {
                             it.day == entry.day && it.month == entry.month
                         }
