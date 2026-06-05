@@ -158,6 +158,8 @@ private fun AppScaffold(
                 Screen.TODAY -> DailyReadingScreen(
                     entry               = currentEntry,
                     favoritesRepository = favoritesRepository,
+                    themePreferences    = themePreferences,
+                    currentThemeMode    = currentThemeMode,
                     entryIndex          = entryIndex,
                     totalEntries        = allEntries.size,
                     todayIndex          = todayIndex,
@@ -168,8 +170,6 @@ private fun AppScaffold(
                 Screen.FAVORITES -> FavoritesScreen(
                     favoritesRepository = favoritesRepository,
                     allEntries          = allEntries,
-                    themePreferences    = themePreferences,
-                    currentThemeMode    = currentThemeMode,
                     onOpenEntry         = { entry ->
                         val idx = allEntries.indexOfFirst {
                             it.day == entry.day && it.month == entry.month

@@ -12,9 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,8 +27,6 @@ import androidx.compose.ui.unit.sp
 import com.diarioestoico.app.data.DailyEntry
 import com.diarioestoico.app.data.FavoritesRepository
 import com.diarioestoico.app.data.SavedPhrase
-import com.diarioestoico.app.data.ThemeMode
-import com.diarioestoico.app.data.ThemePreferences
 import com.diarioestoico.app.ui.theme.LoraFamily
 import com.diarioestoico.app.ui.theme.SansFamily
 import kotlinx.coroutines.launch
@@ -42,30 +37,11 @@ private enum class FavTab { MEDITATIONS, PHRASES }
 fun FavoritesScreen(
     favoritesRepository: FavoritesRepository,
     allEntries: List<DailyEntry>,
-    themePreferences: ThemePreferences,
-    currentThemeMode: ThemeMode,
     onOpenEntry: (DailyEntry) -> Unit
 ) {
     val favoriteIds  by favoritesRepository.favoriteEntryIds.collectAsState(initial = emptySet())
     val savedPhrases by favoritesRepository.savedPhrases.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
-
-    // Cycle: SYSTEM → LIGHT → DARK → SYSTEM
-    val nextThemeMode = when (currentThemeMode) {
-        ThemeMode.SYSTEM -> ThemeMode.LIGHT
-        ThemeMode.LIGHT  -> ThemeMode.DARK
-        ThemeMode.DARK   -> ThemeMode.SYSTEM
-    }
-    val themeIcon = when (currentThemeMode) {
-        ThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
-        ThemeMode.LIGHT  -> Icons.Outlined.LightMode
-        ThemeMode.DARK   -> Icons.Outlined.DarkMode
-    }
-    val themeLabel = when (currentThemeMode) {
-        ThemeMode.SYSTEM -> "Sistema"
-        ThemeMode.LIGHT  -> "Claro"
-        ThemeMode.DARK   -> "Escuro"
-    }
 
     val favoriteEntries = remember(favoriteIds, allEntries) {
         allEntries
@@ -87,38 +63,24 @@ fun FavoritesScreen(
                 .padding(horizontal = 26.dp)
                 .padding(top = 28.dp, bottom = 16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Favoritos",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "${favoriteEntries.size} ${if (favoriteEntries.size == 1) "meditação" else "meditações"} · " +
-                               "${savedPhrases.size} ${if (savedPhrases.size == 1) "frase" else "frases"}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp,
-                            fontFamily = SansFamily,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 11.sp
-                        )
-                    )
-                }
-                // ── Theme toggle ─────────────────────────────────────
-                ThemeToggleButton(
-                    icon = themeIcon,
-                    label = themeLabel,
-                    onClick = { scope.launch { themePreferences.save(nextThemeMode) } }
+            Text(
+                text = "Favoritos",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-            }
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${favoriteEntries.size} ${if (favoriteEntries.size == 1) "meditação" else "meditações"} · " +
+                       "${savedPhrases.size} ${if (savedPhrases.size == 1) "frase" else "frases"}",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.5.sp,
+                    fontFamily = SansFamily,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 11.sp
+                )
+            )
             Spacer(Modifier.height(16.dp))
 
             // Segmented control
@@ -346,41 +308,6 @@ private fun PhraseCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun ThemeToggleButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = "Tema: $label",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                color = MaterialTheme.colorScheme.primary,
-                fontSize = 9.sp,
-                letterSpacing = 0.5.sp
-            )
-        )
     }
 }
 

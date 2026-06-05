@@ -25,6 +25,9 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +53,8 @@ import com.diarioestoico.app.data.FavoritesRepository
 import com.diarioestoico.app.data.NotificationPreferences
 import com.diarioestoico.app.data.NotificationSettings
 import com.diarioestoico.app.data.SavedPhrase
+import com.diarioestoico.app.data.ThemeMode
+import com.diarioestoico.app.data.ThemePreferences
 import com.diarioestoico.app.notifications.cancelNotification
 import com.diarioestoico.app.notifications.scheduleNotification
 import com.diarioestoico.app.ui.components.NotificationDialog
@@ -66,6 +71,8 @@ import java.util.Locale
 fun DailyReadingScreen(
     entry: DailyEntry?,
     favoritesRepository: FavoritesRepository,
+    themePreferences: ThemePreferences,
+    currentThemeMode: ThemeMode,
     entryIndex: Int = 0,
     totalEntries: Int = 366,
     todayIndex: Int = 0,
@@ -157,6 +164,7 @@ fun DailyReadingScreen(
                         progressAnim = progressAnim,
                         isFavorite = isFavorite,
                         notifEnabled = notifSettings.enabled,
+                        themeMode = currentThemeMode,
                         onShare = { showShareSheet = true },
                         onBell = { showNotifDialog = true },
                         onBookmark = {
@@ -167,6 +175,16 @@ fun DailyReadingScreen(
                                               else "Meditação salva nos favoritos",
                                     duration = SnackbarDuration.Short
                                 )
+                            }
+                        },
+                        onToggleTheme = {
+                            scope.launch {
+                                val next = when (currentThemeMode) {
+                                    ThemeMode.SYSTEM -> ThemeMode.LIGHT
+                                    ThemeMode.LIGHT  -> ThemeMode.DARK
+                                    ThemeMode.DARK   -> ThemeMode.SYSTEM
+                                }
+                                themePreferences.save(next)
                             }
                         }
                     )
@@ -257,17 +275,23 @@ private fun ReadingTopBar(
     progressAnim: Float,
     isFavorite: Boolean,
     notifEnabled: Boolean,
+    themeMode: ThemeMode,
     onShare: () -> Unit,
     onBell: () -> Unit,
-    onBookmark: () -> Unit
+    onBookmark: () -> Unit,
+    onToggleTheme: () -> Unit
 ) {
     val accent = MaterialTheme.colorScheme.primary
+    val themeIcon = when (themeMode) {
+        ThemeMode.SYSTEM -> Icons.Outlined.BrightnessAuto
+        ThemeMode.LIGHT  -> Icons.Outlined.LightMode
+        ThemeMode.DARK   -> Icons.Outlined.DarkMode
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
             .drawBehind {
-                // Progress line at the very bottom
                 drawLine(
                     color = accent,
                     start = Offset(0f, size.height),
@@ -292,6 +316,11 @@ private fun ReadingTopBar(
                 )
             )
             Row {
+                TopBarIcon(
+                    imageVector = themeIcon,
+                    contentDescription = "Alternar tema",
+                    onClick = onToggleTheme
+                )
                 TopBarIcon(
                     imageVector = Icons.Default.Share,
                     contentDescription = "Compartilhar",
