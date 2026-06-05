@@ -779,7 +779,7 @@ private fun ShareSheetOverlay(
 
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Receba a meditação do dia em um horário fixo. Um pequeno ritual de constância.",
+                    text = "Escolha o que incluir no card e compartilhe onde quiser.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontStyle = FontStyle.Italic
