@@ -13,17 +13,17 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +31,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.diarioestoico.app.data.DailyEntry
 import com.diarioestoico.app.data.EntryRepository
 import com.diarioestoico.app.data.FavoritesRepository
+import com.diarioestoico.app.data.ThemeMode
+import com.diarioestoico.app.data.ThemePreferences
 import com.diarioestoico.app.ui.DailyReadingScreen
 import com.diarioestoico.app.ui.FavoritesScreen
 import com.diarioestoico.app.ui.theme.DiarioEstoicoTheme
@@ -54,17 +56,28 @@ class MainActivity : ComponentActivity() {
             requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        val entryRepository    = EntryRepository(applicationContext)
+        val entryRepository     = EntryRepository(applicationContext)
         val favoritesRepository = FavoritesRepository(applicationContext)
-        val allEntries         = entryRepository.getAllEntries()
-        val todayEntry         = entryRepository.getTodayEntry()
+        val themePreferences    = ThemePreferences(applicationContext)
+        val allEntries          = entryRepository.getAllEntries()
+        val todayEntry          = entryRepository.getTodayEntry()
 
         setContent {
-            DiarioEstoicoTheme {
+            val themeMode by themePreferences.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+            val systemDark = isSystemInDarkTheme()
+            val isDark = when (themeMode) {
+                ThemeMode.LIGHT  -> false
+                ThemeMode.DARK   -> true
+                ThemeMode.SYSTEM -> systemDark
+            }
+
+            DiarioEstoicoTheme(darkTheme = isDark) {
                 AppScaffold(
                     allEntries          = allEntries,
                     todayEntry          = todayEntry,
-                    favoritesRepository = favoritesRepository
+                    favoritesRepository = favoritesRepository,
+                    themePreferences    = themePreferences,
+                    currentThemeMode    = themeMode
                 )
             }
         }
@@ -75,9 +88,12 @@ class MainActivity : ComponentActivity() {
 private fun AppScaffold(
     allEntries: List<DailyEntry>,
     todayEntry: DailyEntry?,
-    favoritesRepository: FavoritesRepository
+    favoritesRepository: FavoritesRepository,
+    themePreferences: ThemePreferences,
+    currentThemeMode: ThemeMode
 ) {
     var currentScreen by remember { mutableStateOf(Screen.TODAY) }
+    val scope = rememberCoroutineScope()
 
     val todayIndex = remember(allEntries, todayEntry) {
         if (todayEntry == null) 0
@@ -102,10 +118,7 @@ private fun AppScaffold(
                         selected = selected,
                         onClick  = { currentScreen = screen },
                         icon = {
-                            Box(
-                                modifier = Modifier
-                                    .size(if (selected) 56.dp else 40.dp, 28.dp)
-                            ) {
+                            Box(modifier = Modifier.size(if (selected) 56.dp else 40.dp, 28.dp)) {
                                 Icon(
                                     icon,
                                     contentDescription = null,
@@ -155,6 +168,8 @@ private fun AppScaffold(
                 Screen.FAVORITES -> FavoritesScreen(
                     favoritesRepository = favoritesRepository,
                     allEntries          = allEntries,
+                    themePreferences    = themePreferences,
+                    currentThemeMode    = currentThemeMode,
                     onOpenEntry         = { entry ->
                         val idx = allEntries.indexOfFirst {
                             it.day == entry.day && it.month == entry.month
