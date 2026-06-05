@@ -195,7 +195,7 @@ object ShareCardGenerator {
                 // Decorative " mark
                 val markPaint = tp(80f, C_ACCENT, tfItal, Paint.Align.LEFT)
                     .also { it.alpha = 80 }
-                cv.drawText(""", qInset + bPadH * 0.7f, by0 + bPadV + 50f, markPaint)
+                cv.drawText("“", qInset + bPadH * 0.7f, by0 + bPadV + 50f, markPaint)
 
                 // Quote text
                 val qTextY = by0 + bPadV + 66f
